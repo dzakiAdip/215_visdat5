@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bar Chart D3</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/6.7.0/d3.min.js"></script>
+  <style>
+    body {
+      background-color: #1e1e2e;
+      font-family: sans-serif;
+    }
+    .controls {
+      text-align: center;
+      margin: 20px;
+      color: #cdd6f4;
+      font-size: 16px;
+    }
+    .controls form {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+    }
+    #sortOrder {
+      padding: 6px 12px;
+      font-size: 14px;
+      border-radius: 6px;
+      border: none;
+      background-color: #313244;
+      color: #cdd6f4;
+      cursor: pointer;
+    }
+    #sortBtn {
+      padding: 6px 16px;
+      font-size: 14px;
+      border-radius: 6px;
+      border: none;
+      background-color: #cba6f7;
+      color: #1e1e2e;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    #sortBtn:hover {
+      background-color: #b4befe;
+    }
+    .grid line {
+      stroke: #45475a;
+      stroke-opacity: 0.7;
+    }
+    .grid path {
+      stroke-width: 0;
+    }
+    #limit {
+      stroke: #f38ba8;
+      stroke-width: 2;
+      stroke-dasharray: 4;
+    }
+    .value {
+      font-size: 12px;
+      fill: #cdd6f4;
+    }
+    .label {
+      font-size: 14px;
+      fill: #a6adc8;
+    }
+    .title {
+      font-size: 18px;
+      font-weight: bold;
+      fill: #cdd6f4;
+    }
+    .source {
+      font-size: 10px;
+      fill: #6c7086;
+    }
+    .divergence {
+      font-size: 11px;
+    }
+    .tooltip {
+      position: absolute;
+      background: #313244;
+      color: #cdd6f4;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s;
+      border: 1px solid #45475a;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="controls">
+    <form id="sortForm">
+      <label for="sortOrder">Sort Data:</label>
+      <select id="sortOrder">
+        <option value="default">-- Pilih Urutan --</option>
+        <option value="asc">ASC (Ascending)</option>
+        <option value="desc">DESC (Descending)</option>
+      </select>
+      <button type="submit" id="sortBtn">Terapkan</button>
+    </form>
+  </div>
+
+  <div class="tooltip" id="tooltip"></div>
+  <svg width="1000" height="600"></svg>
+
+  <script>
+    const sample = [
+      { language: "Rust",       value: 78.9, color: "#cba6f7" },
+      { language: "Kotlin",     value: 75.1, color: "#89b4fa" },
+      { language: "Python",     value: 68.0, color: "#a6e3a1" },
+      { language: "TypeScript", value: 67.0, color: "#89dceb" },
+      { language: "Go",         value: 65.6, color: "#94e2d5" },
+      { language: "Swift",      value: 65.1, color: "#fab387" },
+      { language: "JavaScript", value: 61.9, color: "#f9e2af" },
+      { language: "C#",         value: 60.4, color: "#f38ba8" },
+      { language: "F#",         value: 59.6, color: "#74c7ec" },
+      { language: "Clojure",    value: 59.6, color: "#b4befe" },
+    ];
+
+    const tooltip = d3.select("#tooltip");
+    const svg = d3.select("svg");
+    const margin = 80;
+    const width = 1000 - margin * 2;
+    const height = 600 - margin * 2;
+
+    const chart = svg
+      .append("g")
+      .attr("transform", `translate(${margin}, ${margin})`);
+
+    const xScale = d3
+      .scaleBand()
+      .domain(sample.map((d) => d.language))
+      .range([0, width])
+      .padding(0.4);
+
+    const yScale = d3
+      .scaleLinear()
+      .domain([0, 100])
+      .range([height, 0]);
+
+    const xAxisGroup = chart
+      .append("g")
+      .attr("transform", `translate(0, ${height})`)
+      .call(d3.axisBottom(xScale));
+
+    xAxisGroup.selectAll("text").style("fill", "#cdd6f4");
+    xAxisGroup.selectAll("line").style("stroke", "#45475a");
+    xAxisGroup.select(".domain").style("stroke", "#45475a");
+
+    const yAxisGroup = chart
+      .append("g")
+      .call(d3.axisLeft(yScale));
+
+    yAxisGroup.selectAll("text").style("fill", "#cdd6f4");
+    yAxisGroup.selectAll("line").style("stroke", "#45475a");
+    yAxisGroup.select(".domain").style("stroke", "#45475a");
+
+    chart
+      .append("g")
+      .attr("class", "grid")
+      .call(d3.axisLeft(yScale).tickSize(-width).tickFormat(""));
+
+    const barGroups = chart
+      .selectAll(".bar-group")
+      .data(sample)
+      .enter()
+      .append("g")
+      .attr("class", "bar-group");
+
+    barGroups
+      .append("rect")
+      .attr("class", "bar")
+      .attr("x", (d) => xScale(d.language))
+      .attr("y", (d) => yScale(d.value))
+      .attr("height", (d) => height - yScale(d.value))
+      .attr("width", xScale.bandwidth())
+      .style("fill", (d) => d.color)
+      .on("mouseenter", function (event, actual) {
+        // Highlight bar
+        d3.select(this)
+          .transition().duration(200)
+          .style("fill", "#ffffff")
+          .attr("opacity", 0.9);
+
+        // Tooltip
+        tooltip
+          .style("opacity", 1)
+          .html(`<strong>${actual.language}</strong><br/>Love: ${actual.value}%`);
+
+        // Garis limit
+        chart.append("line")
+          .attr("id", "limit")
+          .attr("x1", 0)
+          .attr("y1", yScale(actual.value))
+          .attr("x2", width)
+          .attr("y2", yScale(actual.value));
+
+        // Divergence
+        barGroups.append("text")
+          .attr("class", "divergence")
+          .attr("x", (d) => xScale(d.language) + xScale.bandwidth() / 2)
+          .attr("y", (d) => yScale(d.value) - 8)
+          .attr("fill", (d) => {
+            const diff = d.value - actual.value;
+            return diff > 0 ? "#a6e3a1" : diff < 0 ? "#f38ba8" : "#cdd6f4";
+          })
+          .attr("text-anchor", "middle")
+          .attr("font-size", "11px")
+          .text((d) => {
+            if (d.language === actual.language) return "";
+            const diff = (d.value - actual.value).toFixed(1);
+            return diff > 0 ? `+${diff}%` : `${diff}%`;
+          });
+      })
+      .on("mousemove", function (event) {
+        tooltip
+          .style("left", (event.pageX + 14) + "px")
+          .style("top", (event.pageY - 28) + "px");
+      })
+      .on("mouseleave", function (event, actual) {
+        d3.select(this)
+          .transition().duration(200)
+          .style("fill", actual.color)
+          .attr("opacity", 1);
+
+        tooltip.style("opacity", 0);
+        chart.selectAll("#limit").remove();
+        chart.selectAll(".divergence").remove();
+      });
+
+    barGroups
+      .append("text")
+      .attr("class", "value")
+      .attr("x", (d) => xScale(d.language) + xScale.bandwidth() / 2)
+      .attr("y", (d) => yScale(d.value) - 8)
+      .attr("text-anchor", "middle")
+      .text((d) => d.value + "%");
+
+    svg.append("text").attr("class", "label")
+      .attr("x", -(height / 2) - margin)
+      .attr("y", margin / 2.4)
+      .attr("transform", "rotate(-90)")
+      .attr("text-anchor", "middle")
+      .text("Love meter (%)");
+
+    svg.append("text").attr("class", "label")
+      .attr("x", width / 2 + margin)
+      .attr("y", height + margin * 1.7)
+      .attr("text-anchor", "middle")
+      .text("Languages");
+
+    svg.append("text").attr("class", "title")
+      .attr("x", width / 2 + margin)
+      .attr("y", 40)
+      .attr("text-anchor", "middle")
+      .text("Most loved programming languages in 2018");
+
+    svg.append("text").attr("class", "source")
+      .attr("x", width - margin / 2)
+      .attr("y", height + margin * 1.7)
+      .attr("text-anchor", "start")
+      .text("Source: Stack Overflow, 2018");
+
+    // ── SORT HANDLER (menggunakan .sort()) ──
+    document.getElementById("sortForm").addEventListener("submit", function (e) {
+      e.preventDefault();
+      const order = document.getElementById("sortOrder").value;
+
+      if (order === "default") return;
+
+      // Sort data menggunakan .sort()
+      const sortedData = [...sample].sort((a, b) => {
+        return order === "asc" ? a.value - b.value : b.value - a.value;
+      });
+
+      // Update xScale domain
+      xScale.domain(sortedData.map((d) => d.language));
+
+      // Animasi axis
+      xAxisGroup
+        .transition().duration(600)
+        .call(d3.axisBottom(xScale))
+        .selectAll("text")
+        .style("fill", "#cdd6f4");
+
+      // Animasi bar menggunakan .sort() D3
+      chart.selectAll(".bar")
+        .sort((a, b) => {
+          const domain = xScale.domain();
+          return domain.indexOf(a.language) - domain.indexOf(b.language);
+        })
+        .transition().duration(600)
+        .attr("x", (d) => xScale(d.language));
+
+      // Animasi label value
+      chart.selectAll(".value")
+        .sort((a, b) => {
+          const domain = xScale.domain();
+          return domain.indexOf(a.language) - domain.indexOf(b.language);
+        })
+        .transition().duration(600)
+        .attr("x", (d) => xScale(d.language) + xScale.bandwidth() / 2);
+    });
+  </script>
+
+</body>
+</html>
